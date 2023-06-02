@@ -13,6 +13,11 @@ namespace CodeCoverageSummary
         public double Complexity { get; set; }
     }
 
+    public class PackageCoverage : CodeCoverage
+    {
+        public List<CodeCoverage> Classes { get; set; } = new List<CodeCoverage>();
+    }
+
     public class CodeSummary
     {
         public double LineRate { get; set; }

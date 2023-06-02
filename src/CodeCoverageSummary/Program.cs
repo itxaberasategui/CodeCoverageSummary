@@ -211,15 +211,34 @@ namespace CodeCoverageSummary
                     throw new Exception("No package data found");
 
                 int i = 1;
-                foreach (var item in packages)
+                foreach (var package in packages)
                 {
-                    CodeCoverage packageCoverage = new()
+                    PackageCoverage packageCoverage = new()
                     {
-                        Name = string.IsNullOrWhiteSpace(item.Attribute("name")?.Value) ? $"{Path.GetFileNameWithoutExtension(filename)} Package {i}" : item.Attribute("name").Value,
-                        LineRate = double.Parse(item.Attribute("line-rate")?.Value ?? "0"),
-                        BranchRate = double.TryParse(item.Attribute("branch-rate")?.Value ?? "0", out double bRate) ? bRate : 0,
-                        Complexity = double.TryParse(item.Attribute("complexity")?.Value ?? "0", out double complex) ? complex : 0
+                        Name = string.IsNullOrWhiteSpace(package.Attribute("name")?.Value) ? $"{Path.GetFileNameWithoutExtension(filename)} Package {i}" : package.Attribute("name").Value,
+                        LineRate = double.Parse(package.Attribute("line-rate")?.Value ?? "0"),
+                        BranchRate = double.TryParse(package.Attribute("branch-rate")?.Value ?? "0", out double bRate) ? bRate : 0,
+                        Complexity = double.TryParse(package.Attribute("complexity")?.Value ?? "0", out double complex) ? complex : 0
                     };
+
+                    var classes = from item in package.Descendants("class") select item;
+
+                    int j = 1;
+                    foreach (var classItem in classes)
+                    {
+                        CodeCoverage classCoverage = new()
+                        {
+                            Name = string.IsNullOrWhiteSpace(classItem.Attribute("name")?.Value) ? $"{Path.GetFileNameWithoutExtension(filename)} Class {i}" : classItem.Attribute("name").Value,
+                            LineRate = double.Parse(classItem.Attribute("line-rate")?.Value ?? "0"),
+                            BranchRate = double.TryParse(classItem.Attribute("branch-rate")?.Value ?? "0", out double classBRate) ? classBRate : 0,
+                            Complexity = double.TryParse(classItem.Attribute("complexity")?.Value ?? "0", out double classComplex) ? classComplex : 0
+                        };
+                        packageCoverage.Classes.Add(classCoverage);
+                        j++;
+
+                        //var methods = from item in classes.Descendants("method") select item;
+                    }
+
                     summary.Packages.Add(packageCoverage);
                     summary.Complexity += packageCoverage.Complexity;
                     i++;
@@ -348,12 +367,20 @@ namespace CodeCoverageSummary
                           .Append(hideComplexity ? string.Empty : " | ----------")
                           .AppendLine(indicators ? " | ------" : string.Empty);
 
-            foreach (CodeCoverage package in summary.Packages)
+            foreach (PackageCoverage package in summary.Packages)
             {
                 markdownOutput.Append($"{package.Name} | {package.LineRate * 100:N0}%")
                               .Append(hideBranchRate ? string.Empty : $" | {package.BranchRate * 100:N0}%")
-                              .Append(hideComplexity ? string.Empty : (package.Complexity % 1 == 0) ? $" | {package.Complexity}" : $" | {package.Complexity:N4}" )
+                              .Append(hideComplexity ? string.Empty : (package.Complexity % 1 == 0) ? $" | {package.Complexity}" : $" | {package.Complexity:N4}")
                               .AppendLine(indicators ? $" | {GenerateHealthIndicator(package.LineRate)}" : string.Empty);
+
+                foreach (CodeCoverage classCoverage in package.Classes)
+                {
+                    markdownOutput.Append($"{classCoverage.Name} | {classCoverage.LineRate * 100:N0}%")
+                              .Append(hideBranchRate ? string.Empty : $" | {classCoverage.BranchRate * 100:N0}%")
+                              .Append(hideComplexity ? string.Empty : (classCoverage.Complexity % 1 == 0) ? $" | {classCoverage.Complexity}" : $" | {classCoverage.Complexity:N4}")
+                              .AppendLine(indicators ? $" | {GenerateHealthIndicator(classCoverage.LineRate)}" : string.Empty);
+                }
             }
 
             markdownOutput.Append($"**Summary** | **{summary.LineRate * 100:N0}%** ({summary.LinesCovered} / {summary.LinesValid})")
